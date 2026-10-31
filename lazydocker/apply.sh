@@ -47,13 +47,30 @@ fi
 # Create a safe temporary file for the rewrite
 tmp_file="$(mktemp)"
 
-# 3. Rebuild config.yml safely using AWK
+# 3. Rebuild config.yml safely using AWK.
+# The config file is passed twice: the first pass only detects whether gui.theme
+# already exists, so a missing theme is never inserted when one appears later.
 awk -v theme_data="$theme_block" '
   BEGIN {
     in_gui = 0
     in_theme = 0
     saw_gui = 0
     saw_theme = 0
+    has_theme = 0
+    scan_gui = 0
+  }
+
+  # Pass 1: look for "theme:" inside the top-level gui block.
+  FNR == NR {
+    if ($0 ~ /^gui[[:space:]]*:/) {
+      scan_gui = 1
+    } else if ($0 ~ /^[^[:space:]#]/) {
+      # A non-comment top-level key ends the gui block.
+      scan_gui = 0
+    } else if (scan_gui && $0 ~ /^  theme[[:space:]]*:/) {
+      has_theme = 1
+    }
+    next
   }
 
   # Print the theme block under gui.
@@ -91,14 +108,14 @@ awk -v theme_data="$theme_block" '
       # A sibling key is still part of gui. Insert theme before the first
       # sibling when theme is missing, but remain in the gui context.
       if ($0 ~ /^  [^[:space:]#]/) {
-        if (!saw_theme) {
+        if (!saw_theme && !has_theme) {
           print_theme()
         }
       }
 
       # A non-comment top-level key ends the gui block.
       if ($0 ~ /^[^[:space:]#]/) {
-        if (!saw_theme) {
+        if (!saw_theme && !has_theme) {
           print_theme()
         }
         in_gui = 0
@@ -111,7 +128,7 @@ awk -v theme_data="$theme_block" '
 
   END {
     # If the file ended while we were inside gui and we never saw theme, print it now.
-    if (in_gui && !saw_theme) {
+    if (in_gui && !saw_theme && !has_theme) {
       print_theme()
     } else if (!saw_gui) {
       if (NR > 0) {
@@ -122,7 +139,7 @@ awk -v theme_data="$theme_block" '
       print_theme()
     }
   }
-' "$config_file" >"$tmp_file"
+' "$config_file" "$config_file" >"$tmp_file"
 
 # Write through a symlink instead of replacing it via mv.
 if ! cmp -s "$config_file" "$tmp_file"; then

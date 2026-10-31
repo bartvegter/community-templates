@@ -8,7 +8,7 @@ The generated theme is in `$XDG_CONFIG_HOME/lazydocker/themes/noctalia.yml` (`~/
 ## Setup and hook
 
 This theme mirrors the setup used for lazygit template that was implemented before, as lazydocker follows the same configuration style.
-All credits for the logic in the `apply.sh` hook go to the original author.
+All credits for the existing logic in the `apply.sh` hook go to the original author.
 Only references to lazygit have been changed to lazydocker.
 
 Install lazydocker.
@@ -17,6 +17,8 @@ Existing `gui.theme` content is replaced, while unrelated settings are retained;
 
 The merge expects block-style YAML with a top-level `gui:` key, a two-space-indented `theme:` key, and theme entries indented at least four spaces.
 Use that layout in an existing config rather than inline YAML mappings.
+
+The hook makes two passes over the existing `config.yml` to ensure the `gui:` block does not already contain a `theme:` key.
 
 Back up your config before enabling: the hook creates no backup and removes comments within the old theme block along with its settings.
 It writes through config symlinks.
